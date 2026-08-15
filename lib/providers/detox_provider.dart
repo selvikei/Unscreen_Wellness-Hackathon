@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/detox_session.dart';
+import '../models/offline_activity.dart';
 import '../services/storage_service.dart';
 
 class DetoxProvider extends ChangeNotifier {
   final StorageService _storage = StorageService();
   List<DetoxSession> _sessions = [];
+  List<OfflineActivity> _activities = [];
   bool _isLoading = true;
 
   final int dailyGoalMinutes = 30;
 
   List<DetoxSession> get sessions => _sessions;
+  List<OfflineActivity> get activities => _activities;
+  List<OfflineActivity> get selectedActivities =>
+      _activities.where((a) => a.isSelected).toList();
   bool get isLoading => _isLoading;
 
   DetoxProvider() {
@@ -20,6 +25,7 @@ class DetoxProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _sessions = await _storage.loadSessions();
+    _activities = await _storage.loadActivities();
     _isLoading = false;
     notifyListeners();
   }
@@ -36,6 +42,35 @@ class DetoxProvider extends ChangeNotifier {
     );
     await _storage.saveSession(session);
     _sessions.add(session);
+    notifyListeners();
+  }
+
+  Future<void> toggleActivity(String id) async {
+    final index = _activities.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      _activities[index].isSelected = !_activities[index].isSelected;
+      await _storage.saveActivities(_activities);
+      notifyListeners();
+    }
+  }
+
+  Future<void> addCustomActivity(String title, IconData icon) async {
+    final newActivity = OfflineActivity(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: title,
+      iconCodePoint: icon.codePoint,
+      iconFontFamily: icon.fontFamily,
+      iconFontPackage: icon.fontPackage,
+      isSelected: true,
+    );
+    _activities.add(newActivity);
+    await _storage.saveActivities(_activities);
+    notifyListeners();
+  }
+
+  Future<void> deleteActivity(String id) async {
+    _activities.removeWhere((a) => a.id == id);
+    await _storage.saveActivities(_activities);
     notifyListeners();
   }
 
@@ -64,11 +99,10 @@ class DetoxProvider extends ChangeNotifier {
   int get currentStreakDays {
     if (_sessions.isEmpty) return 0;
 
-    // Collect all distinct dates where a session occurred
     final activeDates = _sessions.map((s) {
       return DateTime(s.completedAt.year, s.completedAt.month, s.completedAt.day);
     }).toSet().toList()
-      ..sort((a, b) => b.compareTo(a)); // Newest first
+      ..sort((a, b) => b.compareTo(a));
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -89,7 +123,6 @@ class DetoxProvider extends ChangeNotifier {
     return streak;
   }
 
-  // Last 7 days progress: returns Map of Date -> minutes
   Map<DateTime, int> get pastSevenDaysData {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);

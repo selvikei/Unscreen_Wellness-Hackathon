@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'progress_screen.dart';
+import 'settings_screen.dart';
+import 'things_to_do_screen.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -15,7 +17,9 @@ class _MainNavScreenState extends State<MainNavScreen> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    ThingsToDoScreen(),
     ProgressScreen(),
+    SettingsScreen(),
   ];
 
   @override
@@ -35,9 +39,19 @@ class _MainNavScreenState extends State<MainNavScreen> {
             label: 'Home',
           ),
           NavigationDestination(
+            icon: Icon(Icons.checklist_rounded),
+            selectedIcon: Icon(Icons.checklist_rounded, color: AppTheme.primarySage),
+            label: 'Activities',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.insights_outlined),
             selectedIcon: Icon(Icons.insights, color: AppTheme.primarySage),
             label: 'Progress',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.tune_rounded),
+            selectedIcon: Icon(Icons.tune, color: AppTheme.primarySage),
+            label: 'Settings',
           ),
         ],
       ),

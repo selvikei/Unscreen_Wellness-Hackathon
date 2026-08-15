@@ -1,31 +1,51 @@
 class UserProfile {
   final String name;
-  final String pronoun; // 'she/her', 'he/him', 'they/them'
-  final String wakeUpTime; // e.g. "07:00 AM"
-  final String sleepTime; // e.g. "11:00 PM"
-  final String detoxRoutine; // 'Before Sleep', 'When Waking Up', 'Both', 'Custom'
+  final String pronoun;
+  final int wakeUpHour;
+  final int wakeUpMinute;
+  final int sleepHour;
+  final int sleepMinute;
+  final String detoxRoutine; // 'Before Sleep', 'When Waking Up', 'Both', 'Custom / Flexible'
+  final int morningMinutes;
+  final int nightMinutes;
+  final bool isStrictModeEnabled;
 
   UserProfile({
     required this.name,
     required this.pronoun,
-    required this.wakeUpTime,
-    required this.sleepTime,
+    required this.wakeUpHour,
+    required this.wakeUpMinute,
+    required this.sleepHour,
+    required this.sleepMinute,
     required this.detoxRoutine,
+    this.morningMinutes = 15,
+    this.nightMinutes = 30,
+    this.isStrictModeEnabled = true,
   });
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'pronoun': pronoun,
-    'wakeUpTime': wakeUpTime,
-    'sleepTime': sleepTime,
+    'wakeUpHour': wakeUpHour,
+    'wakeUpMinute': wakeUpMinute,
+    'sleepHour': sleepHour,
+    'sleepMinute': sleepMinute,
     'detoxRoutine': detoxRoutine,
+    'morningMinutes': morningMinutes,
+    'nightMinutes': nightMinutes,
+    'isStrictModeEnabled': isStrictModeEnabled,
   };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
     name: json['name'] as String? ?? '',
     pronoun: json['pronoun'] as String? ?? 'they/them',
-    wakeUpTime: json['wakeUpTime'] as String? ?? '07:00 AM',
-    sleepTime: json['sleepTime'] as String? ?? '11:00 PM',
+    wakeUpHour: json['wakeUpHour'] as int? ?? 7,
+    wakeUpMinute: json['wakeUpMinute'] as int? ?? 0,
+    sleepHour: json['sleepHour'] as int? ?? 23,
+    sleepMinute: json['sleepMinute'] as int? ?? 0,
     detoxRoutine: json['detoxRoutine'] as String? ?? 'Both',
+    morningMinutes: json['morningMinutes'] as int? ?? 15,
+    nightMinutes: json['nightMinutes'] as int? ?? 30,
+    isStrictModeEnabled: json['isStrictModeEnabled'] as bool? ?? false,
   );
 }

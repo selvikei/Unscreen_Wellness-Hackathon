@@ -97,38 +97,38 @@ class _CompletionScreenState extends State<CompletionScreen> {
               const SizedBox(height: 16),
 
               // Feeling selector
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 12,
                 children: _feelings.map((item) {
                   final isSelected = _selectedFeeling == item['label'];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () => setState(() => _selectedFeeling = item['label']!),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppTheme.lightSage : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? AppTheme.primarySage : const Color(0xFFEFEFEA),
-                            width: isSelected ? 2 : 1,
-                          ),
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => setState(() => _selectedFeeling = item['label']!),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.lightSage : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.primarySage : const Color(0xFFEFEFEA),
+                          width: isSelected ? 2 : 1,
                         ),
-                        child: Row(
-                          children: [
-                            Text(item['emoji']!, style: const TextStyle(fontSize: 20)),
-                            const SizedBox(width: 6),
-                            Text(
-                              item['label']!,
-                              style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                                color: AppTheme.textDark,
-                              ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(item['emoji']!, style: const TextStyle(fontSize: 20)),
+                          const SizedBox(width: 6),
+                          Text(
+                            item['label']!,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              color: AppTheme.textDark,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   );

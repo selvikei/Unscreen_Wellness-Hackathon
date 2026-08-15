@@ -17,24 +17,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   int _currentPage = 0;
 
-  // Form State
   final TextEditingController _nameController = TextEditingController();
   String _selectedPronoun = 'she/her';
   TimeOfDay _wakeUpTime = const TimeOfDay(hour: 7, minute: 0);
   TimeOfDay _sleepTime = const TimeOfDay(hour: 23, minute: 0);
   String _selectedRoutine = 'Both';
+  int _morningMinutes = 15;
+  int _nightMinutes = 30;
 
   final List<String> _pronouns = ['she/her', 'he/him', 'they/them'];
+  final List<int> _durations = [15, 30, 45, 60];
+
   final List<Map<String, dynamic>> _routines = [
-    {
-      'title': 'Before Sleep',
-      'desc': 'Wind down and clear your mind before bed',
-      'icon': Icons.nightlight_round,
-    },
     {
       'title': 'When Waking Up',
       'desc': 'Start your morning without instant screen noise',
       'icon': Icons.wb_sunny_rounded,
+    },
+    {
+      'title': 'Before Sleep',
+      'desc': 'Wind down and clear your mind before bed',
+      'icon': Icons.nightlight_round,
     },
     {
       'title': 'Both',
@@ -100,9 +103,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final profile = UserProfile(
       name: _nameController.text.trim(),
       pronoun: _selectedPronoun,
-      wakeUpTime: _wakeUpTime.format(context),
-      sleepTime: _sleepTime.format(context),
+      wakeUpHour: _wakeUpTime.hour,
+      wakeUpMinute: _wakeUpTime.minute,
+      sleepHour: _sleepTime.hour,
+      sleepMinute: _sleepTime.minute,
       detoxRoutine: _selectedRoutine,
+      morningMinutes: _morningMinutes,
+      nightMinutes: _nightMinutes,
     );
 
     await _storage.saveUserProfile(profile);
@@ -111,6 +118,45 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const MainNavScreen()),
+    );
+  }
+
+  Widget _buildDurationPicker(String title, int currentVal, ValueChanged<int> onSelect) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textDark)),
+        const SizedBox(height: 8),
+        Row(
+          children: _durations.map((m) {
+            final isSel = currentVal == m;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => onSelect(m),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSel ? AppTheme.primarySage : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isSel ? AppTheme.primarySage : const Color(0xFFEFEFEA)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "${m}m",
+                      style: TextStyle(
+                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
+                        color: isSel ? Colors.white : AppTheme.textDark,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -123,7 +169,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
           child: Column(
             children: [
-              // Top Progress Indicator
               Row(
                 children: List.generate(4, (index) {
                   return Expanded(
@@ -131,39 +176,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 4,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        color: index <= _currentPage
-                            ? AppTheme.primarySage
-                            : AppTheme.lightSage,
+                        color: index <= _currentPage ? AppTheme.primarySage : AppTheme.lightSage,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   );
                 }),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
-              // Step Pages
               Expanded(
                 child: PageView(
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (page) => setState(() => _currentPage = page),
                   children: [
-                    _buildNameAndPronounStep(),
+                    _buildNameStep(),
                     _buildWakeUpStep(),
                     _buildSleepStep(),
-                    _buildRoutineStep(),
+                    _buildRoutineAndDurationStep(),
                   ],
                 ),
               ),
 
-              // Bottom Action Button
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _nextPage,
-                  child: Text(_currentPage == 3 ? "Get Started" : "Continue"),
+                  child: Text(_currentPage == 3 ? "Complete Setup" : "Continue"),
                 ),
               ),
             ],
@@ -173,8 +214,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Step 1: Name & Pronoun
-  Widget _buildNameAndPronounStep() {
+  Widget _buildNameStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,21 +234,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: Color(0xFFEFEFEA)),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFEFEFEA)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppTheme.primarySage, width: 2),
-            ),
           ),
         ),
         const SizedBox(height: 28),
-        const Text(
-          "Pronoun",
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textDark),
-        ),
+        const Text("Pronoun", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
         const SizedBox(height: 12),
         Wrap(
           spacing: 12,
@@ -226,9 +255,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: isSelected ? AppTheme.primarySage : const Color(0xFFEFEFEA),
-                ),
+                side: BorderSide(color: isSelected ? AppTheme.primarySage : const Color(0xFFEFEFEA)),
               ),
             );
           }).toList(),
@@ -237,19 +264,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Step 2: Wake Up Time
   Widget _buildWakeUpStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Your Routine", style: Theme.of(context).textTheme.bodyMedium),
+        Text("Morning Routine", style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 8),
-        Text("When does your day usually begin?", style: Theme.of(context).textTheme.headlineLarge),
-        const SizedBox(height: 12),
-        Text(
-          "We use this to encourage screen-free mornings.",
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text("When do you wake up?", style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 48),
         Center(
           child: InkWell(
@@ -268,11 +289,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _wakeUpTime.format(context),
-                    style: const TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                    ),
+                    style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: AppTheme.textDark),
                   ),
                   const SizedBox(height: 8),
                   const Text("Tap to change time", style: TextStyle(color: AppTheme.textMuted)),
@@ -285,19 +302,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Step 3: Sleep Time
   Widget _buildSleepStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Rest & Recovery", style: Theme.of(context).textTheme.bodyMedium),
+        Text("Evening Routine", style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 8),
-        Text("What time do you usually go to bed?", style: Theme.of(context).textTheme.headlineLarge),
-        const SizedBox(height: 12),
-        Text(
-          "Helps you set up gentle wind-down detox habits.",
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text("What time do you sleep?", style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 48),
         Center(
           child: InkWell(
@@ -316,11 +327,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _sleepTime.format(context),
-                    style: const TextStyle(
-                      fontSize: 42,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark,
-                    ),
+                    style: const TextStyle(fontSize: 42, fontWeight: FontWeight.w700, color: AppTheme.textDark),
                   ),
                   const SizedBox(height: 8),
                   const Text("Tap to change time", style: TextStyle(color: AppTheme.textMuted)),
@@ -333,28 +340,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Step 4: Detox Routine Selection
-  Widget _buildRoutineStep() {
+  Widget _buildRoutineAndDurationStep() {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Detox & Streak Focus", style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 8),
-          Text("When do you prefer to take your break?", style: Theme.of(context).textTheme.headlineLarge),
-          const SizedBox(height: 24),
+          Text("Strict Detox Preference", style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          Text("Select routine & duration", style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 16),
+
           ..._routines.map((routine) {
             final isSelected = _selectedRoutine == routine['title'];
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
+              padding: const EdgeInsets.only(bottom: 8.0),
               child: InkWell(
                 onTap: () => setState(() => _selectedRoutine = routine['title'] as String),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: isSelected ? AppTheme.lightSage : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isSelected ? AppTheme.primarySage : const Color(0xFFEFEFEA),
                       width: isSelected ? 2 : 1,
@@ -362,29 +369,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        routine['icon'] as IconData,
-                        color: isSelected ? AppTheme.primarySage : AppTheme.textMuted,
-                      ),
-                      const SizedBox(width: 16),
+                      Icon(routine['icon'] as IconData, color: isSelected ? AppTheme.primarySage : AppTheme.textMuted),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              routine['title'] as String,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                color: AppTheme.textDark,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              routine['desc'] as String,
-                              style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
-                            ),
-                          ],
+                        child: Text(
+                          routine['title'] as String,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: AppTheme.textDark,
+                          ),
                         ),
                       ),
                     ],
@@ -393,6 +387,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             );
           }),
+
+          const SizedBox(height: 16),
+
+          // Duration picker for Morning
+          if (_selectedRoutine == 'When Waking Up' || _selectedRoutine == 'Both') ...[
+            _buildDurationPicker(
+              "Morning Strict Duration:",
+              _morningMinutes,
+              (val) => setState(() => _morningMinutes = val),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Duration picker for Night
+          if (_selectedRoutine == 'Before Sleep' || _selectedRoutine == 'Both') ...[
+            _buildDurationPicker(
+              "Night Strict Duration:",
+              _nightMinutes,
+              (val) => setState(() => _nightMinutes = val),
+            ),
+            const SizedBox(height: 14),
+          ],
         ],
       ),
     );
