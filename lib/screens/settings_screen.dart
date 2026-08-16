@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:provider/provider.dart';
 import '../models/user_profile.dart';
-import '../services/storage_service.dart';
+import '../providers/detox_provider.dart';
 import '../theme/app_theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -11,9 +13,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final StorageService _storage = StorageService();
-  bool _isLoading = true;
-
   late TextEditingController _nameController;
   late String _selectedPronoun;
   late TimeOfDay _wakeUpTime;
@@ -22,39 +21,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late int _morningMinutes;
   late int _nightMinutes;
   late bool _isStrictModeEnabled;
+  bool _isInit = false;
 
   final List<String> _pronouns = ['she/her', 'he/him', 'they/them'];
   final List<int> _durations = [15, 30, 45, 60];
   final List<String> _routines = ['When Waking Up', 'Before Sleep', 'Both', 'Custom / Flexible'];
 
   @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInit) {
+      final provider = context.watch<DetoxProvider>();
+      final profile = provider.userProfile ??
+          UserProfile(
+            name: '',
+            pronoun: 'they/them',
+            wakeUpHour: 7,
+            wakeUpMinute: 0,
+            sleepHour: 23,
+            sleepMinute: 0,
+            detoxRoutine: 'Both',
+            isStrictModeEnabled: false,
+          );
 
-  Future<void> _loadProfile() async {
-    final profile = await _storage.getUserProfile() ??
-        UserProfile(
-          name: '',
-          pronoun: 'they/them',
-          wakeUpHour: 7,
-          wakeUpMinute: 0,
-          sleepHour: 23,
-          sleepMinute: 0,
-          detoxRoutine: 'Both',
-        );
-
-    _nameController = TextEditingController(text: profile.name);
-    _selectedPronoun = profile.pronoun;
-    _wakeUpTime = TimeOfDay(hour: profile.wakeUpHour, minute: profile.wakeUpMinute);
-    _sleepTime = TimeOfDay(hour: profile.sleepHour, minute: profile.sleepMinute);
-    _selectedRoutine = profile.detoxRoutine;
-    _morningMinutes = profile.morningMinutes;
-    _nightMinutes = profile.nightMinutes;
-    _isStrictModeEnabled = profile.isStrictModeEnabled;
-
-    setState(() => _isLoading = false);
+      _nameController = TextEditingController(text: profile.name);
+      _selectedPronoun = profile.pronoun;
+      _wakeUpTime = TimeOfDay(hour: profile.wakeUpHour, minute: profile.wakeUpMinute);
+      _sleepTime = TimeOfDay(hour: profile.sleepHour, minute: profile.sleepMinute);
+      _selectedRoutine = profile.detoxRoutine;
+      _morningMinutes = profile.morningMinutes;
+      _nightMinutes = profile.nightMinutes;
+      _isStrictModeEnabled = profile.isStrictModeEnabled;
+      _isInit = true;
+    }
   }
 
   Future<void> _pickTime(bool isWakeUp) async {
@@ -89,7 +88,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _onToggleStrictMode(bool value) {
     if (value) {
-      // Prompt user for permission/commitment
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -102,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           content: const Text(
-            "When enabled, launching the app during your scheduled wake-up or bedtime window will immediately start a locked detox timer that cannot be canceled early.",
+            "Strict Mode removes the 'End session' button and shows your allowed apps directly on the timer screen.\n\nOpening any allowed app will invalidate the session (0 minutes saved).\n\nThe timer will keep running.",
             style: TextStyle(height: 1.4, color: AppTheme.textDark),
           ),
           actions: [
@@ -111,10 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: const Text("Cancel", style: TextStyle(color: AppTheme.textMuted)),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primarySage,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primarySage),
               onPressed: () {
                 setState(() => _isStrictModeEnabled = true);
                 Navigator.pop(ctx);
@@ -127,6 +122,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } else {
       setState(() => _isStrictModeEnabled = false);
     }
+  }
+
+  void _showRealAppPickerModal(BuildContext context, DetoxProvider provider) {
+    String searchQuery = "";
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filteredApps = provider.installedApps.where((app) {
+              return app.name.toLowerCase().contains(searchQuery.toLowerCase());
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Select Phone Apps",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textDark),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: AppTheme.textMuted),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: "Search installed apps...",
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.textMuted),
+                      filled: true,
+                      fillColor: AppTheme.background,
+                      contentPadding: const EdgeInsets.all(12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: Color(0xFFEFEFEA)),
+                      ),
+                    ),
+                    onChanged: (val) => setModalState(() => searchQuery = val),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: filteredApps.isEmpty
+                        ? const Center(child: Text("No apps found", style: TextStyle(color: AppTheme.textMuted)))
+                        : ListView.separated(
+                            itemCount: filteredApps.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF2F2EC)),
+                            itemBuilder: (context, index) {
+                              final app = filteredApps[index];
+                              final isAllowed = provider.allowedPackageNames.contains(app.packageName);
+
+                              return CheckboxListTile(
+                                value: isAllowed,
+                                activeColor: AppTheme.primarySage,
+                                secondary: app.icon != null
+                                    ? Image.memory(app.icon!, width: 36, height: 36)
+                                    : const Icon(Icons.android, size: 36, color: AppTheme.primarySage),
+                                title: Text(app.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                subtitle: Text(
+                                  app.packageName,
+                                  style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                onChanged: (_) {
+                                  provider.toggleAllowedPackage(app.packageName);
+                                  setModalState(() {});
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _saveSettings() async {
@@ -143,7 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       isStrictModeEnabled: _isStrictModeEnabled,
     );
 
-    await _storage.saveUserProfile(profile);
+    await context.read<DetoxProvider>().updateUserProfile(profile);
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -156,18 +240,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    final provider = context.watch<DetoxProvider>();
+
+    if (provider.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator(color: AppTheme.primarySage)),
       );
     }
 
+    final allowedApps = provider.allowedApps;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Settings & Profile", style: TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w600)),
+        title: const Text("Settings", style: TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w700)),
         backgroundColor: AppTheme.background,
         elevation: 0,
-        centerTitle: false,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -175,7 +262,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Strict Mode Permission Card
               Card(
                 color: _isStrictModeEnabled ? AppTheme.lightSage.withOpacity(0.4) : Colors.white,
                 shape: RoundedRectangleBorder(
@@ -187,85 +273,105 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(18.0),
-                  child: Column(
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: _isStrictModeEnabled ? AppTheme.primarySage : AppTheme.lightSage,
-                              shape: BoxShape.circle,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _isStrictModeEnabled ? AppTheme.primarySage : AppTheme.lightSage,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.lock_rounded,
+                          color: _isStrictModeEnabled ? Colors.white : AppTheme.textMuted,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Strict Mode",
+                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textDark),
                             ),
-                            child: Icon(
-                              Icons.lock_rounded,
-                              color: _isStrictModeEnabled ? Colors.white : AppTheme.textMuted,
-                              size: 20,
+                            SizedBox(height: 2),
+                            Text(
+                              "Hides 'End session' button & shows allowed apps inline",
+                              style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
                             ),
-                          ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Strict Mode",
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textDark),
-                                ),
-                                SizedBox(height: 2),
-                                Text(
-                                  "Auto-lock app during scheduled routine",
-                                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Switch(
-                            value: _isStrictModeEnabled,
-                            activeColor: AppTheme.primarySage,
-                            onChanged: _onToggleStrictMode,
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: _isStrictModeEnabled,
+                        activeColor: AppTheme.primarySage,
+                        onChanged: _onToggleStrictMode,
                       ),
                     ],
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-              const Text("Personal Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textDark)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Allowed Phone Apps",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textDark),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _showRealAppPickerModal(context, provider),
+                    icon: const Icon(Icons.add, size: 18, color: AppTheme.primarySage),
+                    label: const Text("Manage", style: TextStyle(color: AppTheme.primarySage, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const Text(
+                "Pick installed apps that appear on the timer during Strict Mode. Opening them invalidates the session.",
+                style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+              ),
               const SizedBox(height: 12),
-
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: "Your Name",
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFEFEFEA))),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: allowedApps.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16.0),
+                            child: Text(
+                              "No apps whitelisted yet.\nTap 'Manage' to choose installed apps.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: allowedApps.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF2F2EC)),
+                          itemBuilder: (context, index) {
+                            final app = allowedApps[index];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: app.icon != null
+                                  ? Image.memory(app.icon!, width: 32, height: 32)
+                                  : const Icon(Icons.android, size: 32, color: AppTheme.primarySage),
+                              title: Text(app.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent, size: 20),
+                                onPressed: () => provider.toggleAllowedPackage(app.packageName),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ),
-              const SizedBox(height: 14),
-
-              Wrap(
-                spacing: 10,
-                children: _pronouns.map((p) {
-                  final isSel = _selectedPronoun == p;
-                  return ChoiceChip(
-                    label: Text(p),
-                    selected: isSel,
-                    onSelected: (_) => setState(() => _selectedPronoun = p),
-                    selectedColor: AppTheme.lightSage,
-                    backgroundColor: Colors.white,
-                    labelStyle: TextStyle(color: isSel ? AppTheme.primarySage : AppTheme.textDark),
-                  );
-                }).toList(),
-              ),
-
               const SizedBox(height: 24),
               const Text("Schedule & Routine", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textDark)),
               const SizedBox(height: 12),
-
               Row(
                 children: [
                   Expanded(
@@ -277,10 +383,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 18),
-
-              // Routine Selector
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
@@ -299,21 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // Duration selectors
-              if (_selectedRoutine == 'When Waking Up' || _selectedRoutine == 'Both') ...[
-                _buildDurationOption("Morning Detox Duration", _morningMinutes, (v) => setState(() => _morningMinutes = v)),
-                const SizedBox(height: 14),
-              ],
-              if (_selectedRoutine == 'Before Sleep' || _selectedRoutine == 'Both') ...[
-                _buildDurationOption("Night Detox Duration", _nightMinutes, (v) => setState(() => _nightMinutes = v)),
-                const SizedBox(height: 14),
-              ],
-
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -356,45 +445,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildDurationOption(String title, int currentVal, ValueChanged<int> onSelect) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.textDark)),
-        const SizedBox(height: 8),
-        Row(
-          children: _durations.map((m) {
-            final isSel = currentVal == m;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onSelect(m),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSel ? AppTheme.primarySage : Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: isSel ? AppTheme.primarySage : const Color(0xFFEFEFEA)),
-                  ),
-                  child: Center(
-                    child: Text(
-                      "${m}m",
-                      style: TextStyle(
-                        fontWeight: isSel ? FontWeight.w700 : FontWeight.w500,
-                        color: isSel ? Colors.white : AppTheme.textDark,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
     );
   }
 }

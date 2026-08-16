@@ -8,23 +8,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:unscreen/main.dart';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:unscreen/models/user_profile.dart';
+import 'package:unscreen/providers/detox_provider.dart';
+import 'package:unscreen/screens/home_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('home screen greeting includes saved user name', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({
+      'unscreen_user_profile': jsonEncode(UserProfile(
+        name: 'Maya',
+        pronoun: 'she/her',
+        wakeUpHour: 7,
+        wakeUpMinute: 0,
+        sleepHour: 23,
+        sleepMinute: 0,
+        detoxRoutine: 'Both',
+      ).toJson()),
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => DetoxProvider(),
+        child: const MaterialApp(home: HomeScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.textContaining('Maya'), findsOneWidget);
   });
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/detox_provider.dart';
 import '../theme/app_theme.dart';
 import 'detox_timer_screen.dart';
 
@@ -60,8 +62,6 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-
-                  // Display Minutes
                   Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -89,8 +89,6 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Slider: min 1, max 180
                   Slider(
                     value: tempMinutes.toDouble().clamp(1.0, 180.0),
                     min: 1.0,
@@ -105,10 +103,7 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
                       });
                     },
                   ),
-
                   const SizedBox(height: 12),
-
-                  // Text Field with safe empty-state handling
                   TextField(
                     controller: controller,
                     keyboardType: TextInputType.number,
@@ -126,30 +121,21 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
                     onChanged: (val) {
                       final trimmed = val.trim();
                       if (trimmed.isEmpty) {
-                        // Empty string is allowed - no error thrown
-                        setModalState(() {
-                          tempMinutes = 1;
-                        });
+                        setModalState(() => tempMinutes = 1);
                         return;
                       }
-
                       final parsed = int.tryParse(trimmed);
                       if (parsed != null) {
-                        setModalState(() {
-                          tempMinutes = parsed.clamp(1, 180);
-                        });
+                        setModalState(() => tempMinutes = parsed.clamp(1, 180));
                       }
                     },
                   ),
-
                   const SizedBox(height: 24),
-
                   SizedBox(
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Fallback safe value on submit if user cleared input
                         final textVal = controller.text.trim();
                         final parsed = int.tryParse(textVal) ?? tempMinutes;
                         final finalMinutes = parsed.clamp(1, 180);
@@ -175,6 +161,8 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isStrict = context.watch<DetoxProvider>().isStrictModeActive;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -196,8 +184,14 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Pick a moment that feels right for you right now.",
-                style: Theme.of(context).textTheme.bodyMedium,
+                isStrict
+                    ? "🔒 Strict Mode is ON. Session cannot be canceled early."
+                    : "Pick a moment that feels right for you right now.",
+                style: TextStyle(
+                  color: isStrict ? AppTheme.primarySage : AppTheme.textMuted,
+                  fontWeight: isStrict ? FontWeight.w600 : FontWeight.w400,
+                  fontSize: 14,
+                ),
               ),
               const SizedBox(height: 32),
 
@@ -307,6 +301,7 @@ class _ChooseDetoxScreenState extends State<ChooseDetoxScreen> {
                       MaterialPageRoute(
                         builder: (context) => DetoxTimerScreen(
                           totalMinutes: _selectedMinutes,
+                          isStrict: isStrict, // Connected directly here
                         ),
                       ),
                     );

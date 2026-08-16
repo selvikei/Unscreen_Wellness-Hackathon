@@ -1,17 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/user_profile.dart';
 import '../providers/detox_provider.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import 'choose_detox_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final profile = await StorageService().getUserProfile();
+    if (!mounted) return;
+    setState(() {
+      _userName = profile?.name.trim() ?? '';
+    });
+  }
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return "Good morning 👋";
-    if (hour < 17) return "Good afternoon 🌤️";
-    return "Good evening 🌙";
+    final String greeting;
+    if (hour < 12) {
+      greeting = 'Good morning';
+    } else if (hour < 17) {
+      greeting = 'Good afternoon';
+    } else {
+      greeting = 'Good evening';
+    }
+
+    if (_userName.isNotEmpty) {
+      return '$greeting, $_userName 👋';
+    }
+
+    return '$greeting 👋';
   }
 
   @override

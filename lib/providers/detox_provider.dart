@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:installed_apps/app_info.dart';
+import 'package:installed_apps/installed_apps.dart';
 import '../models/detox_session.dart';
 import '../models/offline_activity.dart';
+import '../models/user_profile.dart';
 import '../services/storage_service.dart';
 
 class DetoxProvider extends ChangeNotifier {
   final StorageService _storage = StorageService();
   List<DetoxSession> _sessions = [];
   List<OfflineActivity> _activities = [];
+  List<AppInfo> _installedApps = [];
+  List<String> _allowedPackageNames = [];
+  UserProfile? _userProfile;
   bool _isLoading = true;
 
   final int dailyGoalMinutes = 30;
@@ -15,7 +21,15 @@ class DetoxProvider extends ChangeNotifier {
   List<OfflineActivity> get activities => _activities;
   List<OfflineActivity> get selectedActivities =>
       _activities.where((a) => a.isSelected).toList();
+  List<AppInfo> get installedApps => _installedApps;
+  List<String> get allowedPackageNames => _allowedPackageNames;
+  UserProfile? get userProfile => _userProfile;
+  bool get isStrictModeActive => _userProfile?.isStrictModeEnabled ?? false;
   bool get isLoading => _isLoading;
+
+  List<AppInfo> get allowedApps => _installedApps
+      .where((app) => _allowedPackageNames.contains(app.packageName))
+      .toList();
 
   DetoxProvider() {
     loadData();
@@ -24,9 +38,39 @@ class DetoxProvider extends ChangeNotifier {
   Future<void> loadData() async {
     _isLoading = true;
     notifyListeners();
+
     _sessions = await _storage.loadSessions();
     _activities = await _storage.loadActivities();
+    _userProfile = await _storage.getUserProfile();
+    _allowedPackageNames = await _storage.loadAllowedPackageNames();
+
+    try {
+      // excludeSystemApps = false, withIcon = true
+      final List<AppInfo> apps = await InstalledApps.getInstalledApps(false, true);
+
+      _installedApps = apps
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    } catch (_) {
+      _installedApps = [];
+    }
+
     _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> updateUserProfile(UserProfile profile) async {
+    _userProfile = profile;
+    await _storage.saveUserProfile(profile);
+    notifyListeners();
+  }
+
+  Future<void> toggleAllowedPackage(String packageName) async {
+    if (_allowedPackageNames.contains(packageName)) {
+      _allowedPackageNames.remove(packageName);
+    } else {
+      _allowedPackageNames.add(packageName);
+    }
+    await _storage.saveAllowedPackageNames(_allowedPackageNames);
     notifyListeners();
   }
 
@@ -67,14 +111,6 @@ class DetoxProvider extends ChangeNotifier {
     await _storage.saveActivities(_activities);
     notifyListeners();
   }
-
-  Future<void> deleteActivity(String id) async {
-    _activities.removeWhere((a) => a.id == id);
-    await _storage.saveActivities(_activities);
-    notifyListeners();
-  }
-
-  // --- Calculations ---
 
   int get todayCompletedMinutes {
     final now = DateTime.now();

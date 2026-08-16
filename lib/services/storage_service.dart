@@ -9,6 +9,7 @@ class StorageService {
   static const String _onboardingDoneKey = 'unscreen_onboarding_done';
   static const String _userProfileKey = 'unscreen_user_profile';
   static const String _activitiesKey = 'unscreen_offline_activities';
+  static const String _allowedAppPackagesKey = 'unscreen_allowed_packages';
 
   Future<bool> isOnboardingCompleted() async {
     final prefs = await SharedPreferences.getInstance();
@@ -50,7 +51,6 @@ class StorageService {
     await prefs.setString(_sessionsKey, encoded);
   }
 
-  // Offline Activities
   Future<List<OfflineActivity>> loadActivities() async {
     final prefs = await SharedPreferences.getInstance();
     final String? data = prefs.getString(_activitiesKey);
@@ -59,7 +59,6 @@ class StorageService {
       await saveActivities(defaults);
       return defaults;
     }
-
     try {
       final List<dynamic> decoded = jsonDecode(data);
       return decoded.map((item) => OfflineActivity.fromJson(item)).toList();
@@ -72,5 +71,16 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(activities.map((a) => a.toJson()).toList());
     await prefs.setString(_activitiesKey, encoded);
+  }
+
+  // Allowed App Package Names
+  Future<List<String>> loadAllowedPackageNames() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_allowedAppPackagesKey) ?? [];
+  }
+
+  Future<void> saveAllowedPackageNames(List<String> packages) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_allowedAppPackagesKey, packages);
   }
 }
