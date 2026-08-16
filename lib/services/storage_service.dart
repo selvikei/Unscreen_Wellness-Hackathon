@@ -1,0 +1,86 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/detox_session.dart';
+import '../models/offline_activity.dart';
+import '../models/user_profile.dart';
+
+class StorageService {
+  static const String _sessionsKey = 'unscreen_sessions';
+  static const String _onboardingDoneKey = 'unscreen_onboarding_done';
+  static const String _userProfileKey = 'unscreen_user_profile';
+  static const String _activitiesKey = 'unscreen_offline_activities';
+  static const String _allowedAppPackagesKey = 'unscreen_allowed_packages';
+
+  Future<bool> isOnboardingCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingDoneKey) ?? false;
+  }
+
+  Future<void> saveUserProfile(UserProfile profile) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userProfileKey, jsonEncode(profile.toJson()));
+    await prefs.setBool(_onboardingDoneKey, true);
+  }
+
+  Future<UserProfile?> getUserProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_userProfileKey);
+    if (data == null) return null;
+    return UserProfile.fromJson(jsonDecode(data));
+  }
+
+  Future<List<DetoxSession>> loadSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString(_sessionsKey);
+    if (data == null || data.isEmpty) return [];
+
+    try {
+      final List<dynamic> decoded = jsonDecode(data);
+      return decoded.map((item) => DetoxSession.fromJson(item)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveSession(DetoxSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    final sessions = await loadSessions();
+    sessions.add(session);
+
+    final encoded = jsonEncode(sessions.map((s) => s.toJson()).toList());
+    await prefs.setString(_sessionsKey, encoded);
+  }
+
+  Future<List<OfflineActivity>> loadActivities() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString(_activitiesKey);
+    if (data == null || data.isEmpty) {
+      final defaults = OfflineActivity.defaultActivities;
+      await saveActivities(defaults);
+      return defaults;
+    }
+    try {
+      final List<dynamic> decoded = jsonDecode(data);
+      return decoded.map((item) => OfflineActivity.fromJson(item)).toList();
+    } catch (_) {
+      return OfflineActivity.defaultActivities;
+    }
+  }
+
+  Future<void> saveActivities(List<OfflineActivity> activities) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(activities.map((a) => a.toJson()).toList());
+    await prefs.setString(_activitiesKey, encoded);
+  }
+
+  // Allowed App Package Names
+  Future<List<String>> loadAllowedPackageNames() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_allowedAppPackagesKey) ?? [];
+  }
+
+  Future<void> saveAllowedPackageNames(List<String> packages) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_allowedAppPackagesKey, packages);
+  }
+}
